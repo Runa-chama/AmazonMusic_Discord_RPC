@@ -1,0 +1,12 @@
+build/
+.vs/
+*.obj
+*.pdb
+*.ilk
+*.log
+config.ini
+artcache.txt
+
+# ビルド済み exe は配布用にコミットする
+dist/*
+!dist/AmazonMusicRPC.exe
