@@ -133,9 +133,25 @@ size_t findJsonEnd(const std::string& text, size_t start) {
     return std::string::npos;
 }
 
-std::optional<AmazonCachedTrack> parseTrack(const std::string& text) {
+std::optional<AmazonCachedTrack> parseTrack(const std::string& text,
+                                           const std::string& expectedAsin) {
     const auto parsed = json::parse(text);
     if (!parsed || !parsed->isObject()) return std::nullopt;
+
+    // The cache also contains large wrapper objects that include many tracks.
+    // Only accept an object whose own ASIN (or uniqueId) matches the track we
+    // are looking for.
+    bool asinMatches = false;
+    if (const auto* asin = parsed->find("asin"); asin && asin->isString()) {
+        asinMatches = asin->asString() == expectedAsin;
+    }
+    if (!asinMatches) {
+        if (const auto* uniqueId = parsed->find("uniqueId");
+            uniqueId && uniqueId->isString()) {
+            asinMatches = uniqueId->asString() == expectedAsin;
+        }
+    }
+    if (!asinMatches) return std::nullopt;
 
     const auto* title = parsed->find("title");
     if (!title || !title->isString() || title->asString().empty()) {
@@ -144,12 +160,29 @@ std::optional<AmazonCachedTrack> parseTrack(const std::string& text) {
     if (!title || !title->isString() || title->asString().empty()) return std::nullopt;
 
     AmazonCachedTrack track;
+    track.asin = expectedAsin;
     track.title = title->asString();
 
-    if (const auto* artist = parsed->find("artist");
-        artist && artist->isObject()) {
-        if (const auto* name = artist->find("name"); name && name->isString()) {
-            track.artist = name->asString();
+    if (const auto* concatenated = parsed->find("concatenatedArtistName");
+        concatenated && concatenated->isString()) {
+        track.artist = concatenated->asString();
+    }
+    if (track.artist.empty()) {
+        if (const auto* artist = parsed->find("artist"); artist && artist->isObject()) {
+            if (const auto* name = artist->find("name"); name && name->isString()) {
+                track.artist = name->asString();
+            }
+        }
+    }
+    if (track.artist.empty()) {
+        if (const auto* artists = parsed->find("artists");
+            artists && artists->isArray() && !artists->array.empty()) {
+            const auto& first = artists->array.front();
+            if (first.isObject()) {
+                if (const auto* name = first.find("name"); name && name->isString()) {
+                    track.artist = name->asString();
+                }
+            }
         }
     }
 
@@ -174,6 +207,26 @@ std::optional<AmazonCachedTrack> parseTrack(const std::string& text) {
     }
 
     return track;
+}
+
+std::optional<AmazonCachedTrack> parseNear(const std::string& text, size_t asinPosition,
+                                           const std::string& asin) {
+    // The ASIN is near the end of the track object. Walk backwards through
+    // enclosing '{' candidates and accept the first object that contains the
+    // ASIN and whose own ASIN matches it.
+    size_t cursor = asinPosition;
+    for (int attempt = 0; attempt < 128 && cursor > 0; ++attempt) {
+        const size_t start = text.rfind('{', cursor - 1);
+        if (start == std::string::npos) break;
+        cursor = start;
+
+        const size_t end = findJsonEnd(text, start);
+        if (end == std::string::npos || end < asinPosition) continue;
+        if (auto track = parseTrack(text.substr(start, end - start + 1), asin)) {
+            return track;
+        }
+    }
+    return std::nullopt;
 }
 
 int trackScore(const AmazonCachedTrack& track) {
@@ -218,19 +271,11 @@ std::optional<AmazonCachedTrack> findAmazonCachedTrack() {
             }
 
             while (position != std::string::npos) {
-                size_t start = text.rfind("{\"id\":", position);
-                if (start == std::string::npos) start = text.rfind('{', position);
-                if (start != std::string::npos) {
-                    const size_t end = findJsonEnd(text, start);
-                    if (end != std::string::npos) {
-                        if (auto track = parseTrack(text.substr(start, end - start + 1))) {
-                            track->asin = asin;
-                            const int score = trackScore(*track);
-                            if (score > bestScore) {
-                                bestScore = score;
-                                best = std::move(track);
-                            }
-                        }
+                if (auto track = parseNear(text, position, asin)) {
+                    const int score = trackScore(*track);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        best = std::move(track);
                     }
                 }
                 position = text.find(needle, position + needle.size());
