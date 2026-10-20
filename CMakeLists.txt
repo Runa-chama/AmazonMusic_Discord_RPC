@@ -11,6 +11,7 @@ add_executable(AmazonMusicRPC WIN32
     src/config.cpp
     src/util.cpp
     src/media.cpp
+    src/amazon_cache.cpp
     src/amazon_log.cpp
     src/http.cpp
     src/artwork.cpp

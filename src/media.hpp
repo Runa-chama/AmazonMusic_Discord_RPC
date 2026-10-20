@@ -57,4 +57,6 @@ private:
     bool needThumbnail_ = false;
     std::string lastKey_;
     TrackInfo lastInfo_;
+    std::string lastCacheKey_;
+    int64_t lastCacheAttemptMs_ = 0;
 };

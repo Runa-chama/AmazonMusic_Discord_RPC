@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace {
@@ -130,4 +131,72 @@ std::optional<int64_t> lastAmazonPlaybackTerminationUnixMs() {
         }
     }
     return std::nullopt;
+}
+
+namespace {
+
+std::string parseAsin(std::string_view text) {
+    if (text.size() < 10) return {};
+    for (size_t i = 0; i + 10 <= text.size(); ++i) {
+        bool valid = true;
+        for (size_t j = 0; j < 10; ++j) {
+            const char c = text[i + j];
+            if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) {
+                valid = false;
+                break;
+            }
+        }
+        if (valid) return std::string(text.substr(i, 10));
+    }
+    return {};
+}
+
+} // namespace
+
+std::vector<std::string> lastAmazonTrackAsins() {
+    for (const auto& path : candidateLogPaths()) {
+        std::string text;
+        if (!readTail(path, text)) continue;
+
+        size_t marker = text.rfind("StartingPlayback");
+        if (marker == std::string::npos) marker = text.rfind("play called with uris:");
+        if (marker == std::string::npos) marker = text.rfind("Playables : UriList =");
+        if (marker == std::string::npos) continue;
+
+        const size_t lineEnd = text.find('\n', marker);
+        const size_t end = lineEnd == std::string::npos ? text.size() : lineEnd;
+        const std::string_view line(text.data() + marker, end - marker);
+
+        std::string requested;
+        size_t asinPos = line.find("asin-//");
+        if (asinPos == std::string_view::npos) {
+            asinPos = line.find("asin://");
+        }
+        if (asinPos != std::string_view::npos) {
+            requested = parseAsin(line.substr(asinPos + 7));
+        }
+
+        // Amazon may substitute an unavailable track with another catalog
+        // entry. The substitute is what is actually playing, so try it first.
+        std::vector<std::string> result;
+        const size_t searchEnd = std::min(text.size(), marker + 8000);
+        const std::string substituteMarker = "Substitute ASIN: ";
+        size_t substitute = text.find(substituteMarker, marker);
+        while (substitute != std::string::npos && substitute < searchEnd) {
+            const std::string asin =
+                parseAsin(std::string_view(text).substr(substitute + substituteMarker.size()));
+            if (!asin.empty() &&
+                std::find(result.begin(), result.end(), asin) == result.end()) {
+                result.push_back(asin);
+            }
+            substitute = text.find(substituteMarker, substitute + 1);
+        }
+        if (!requested.empty() &&
+            std::find(result.begin(), result.end(), requested) == result.end()) {
+            result.push_back(requested);
+        }
+
+        if (!result.empty()) return result;
+    }
+    return {};
 }

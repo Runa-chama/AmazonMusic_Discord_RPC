@@ -1,5 +1,6 @@
 #include "media.hpp"
 
+#include "amazon_cache.hpp"
 #include "util.hpp"
 
 #include <winrt/Windows.Foundation.h>
@@ -18,6 +19,12 @@ int64_t dateTimeToUnixMs(winrt::Windows::Foundation::DateTime value) {
     // DateTime counts 100 ns intervals since 1601-01-01.
     constexpr int64_t kEpochDifferenceMs = 11644473600000LL;
     return static_cast<int64_t>(value.time_since_epoch().count() / 10000) - kEpochDifferenceMs;
+}
+
+bool isAmazonMusicApp(const std::string& appId) {
+    const std::string lower = toLowerAscii(appId);
+    return lower.find("amazonmusic") != std::string::npos ||
+           lower.find("amazon music") != std::string::npos;
 }
 
 std::string detectImageType(const std::vector<uint8_t>& data) {
@@ -65,7 +72,8 @@ MediaWatcher::MediaWatcher() = default;
 
 MediaWatcher::~MediaWatcher() = default;
 
-bool MediaWatcher::initialize(const std::string& appFilter, bool needThumbnail, std::string& error) {
+bool MediaWatcher::initialize(const std::string& appFilter, bool needThumbnail,
+                              std::string& error) {
     needThumbnail_ = needThumbnail;
     filters_.clear();
     for (auto& item : split(appFilter, ';')) {
@@ -171,7 +179,6 @@ TrackInfo MediaWatcher::poll() {
     } catch (const hresult_error&) {
     }
 
-    bool metadataOk = false;
     try {
         const auto props = session.TryGetMediaPropertiesAsync().get();
         info.title = winrt::to_string(props.Title());
@@ -179,7 +186,6 @@ TrackInfo MediaWatcher::poll() {
         info.album = winrt::to_string(props.AlbumTitle());
         info.albumArtist = winrt::to_string(props.AlbumArtist());
         info.subtitle = winrt::to_string(props.Subtitle());
-        metadataOk = true;
 
         if (needThumbnail_) {
             const std::string key = info.key();
@@ -191,10 +197,36 @@ TrackInfo MediaWatcher::poll() {
     } catch (const hresult_error&) {
     }
 
-    if (!metadataOk) {
-        // Keep the previous metadata if the app is temporarily unable to answer.
+    if (info.title.empty() && (info.playing || info.paused) &&
+        isAmazonMusicApp(info.sourceApp)) {
+        const int64_t now = unixNowMs();
+
+        // Amazon Music's local catalog cache contains the full track metadata
+        // and works while the app is minimized. Unlike screen capture, it does
+        // not touch the Amazon Music window at all.
+        if (now - lastCacheAttemptMs_ >= 1500) {
+            lastCacheAttemptMs_ = now;
+            if (const auto cachedTrack = findAmazonCachedTrack()) {
+                info.title = cachedTrack->title;
+                info.artist = cachedTrack->artist;
+                info.album = cachedTrack->album;
+                info.durationMs = cachedTrack->durationMs;
+                if (info.key() != lastCacheKey_) {
+                    lastCacheKey_ = info.key();
+                    std::string line = info.title;
+                    if (!info.artist.empty()) line += " — " + info.artist;
+                    logInfo("Amazon Music のキャッシュから曲情報を取得しました: " + line);
+                }
+            }
+        }
+    }
+
+    if (info.title.empty()) {
+        // Keep the previous metadata if SMTC is empty and the cache has not
+        // caught up yet. This also prevents flickering between empty polls.
         if (!lastInfo_.hasMetadata()) {
             info.hasSession = false;
+            lastInfo_ = info;
             return info;
         }
         info.title = lastInfo_.title;
@@ -202,22 +234,20 @@ TrackInfo MediaWatcher::poll() {
         info.album = lastInfo_.album;
         info.albumArtist = lastInfo_.albumArtist;
         info.subtitle = lastInfo_.subtitle;
-    }
-
-    if (info.title.empty()) {
-        lastKey_.clear();
-        lastInfo_ = info;
-        return info;
+        info.durationMs = lastInfo_.durationMs;
     }
 
     try {
         const auto timeline = session.GetTimelineProperties();
         info.positionMs =
             std::chrono::duration_cast<std::chrono::milliseconds>(timeline.Position()).count();
-        info.durationMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                              timeline.EndTime() - timeline.StartTime())
-                              .count();
-        if (info.durationMs < 0) info.durationMs = 0;
+        const int64_t timelineDuration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                timeline.EndTime() - timeline.StartTime())
+                .count();
+        // Keep the duration recovered from Amazon's cache when SMTC reports no
+        // usable timeline.
+        if (timelineDuration > 0) info.durationMs = timelineDuration;
 
         if (info.playing && info.durationMs > 0) {
             const int64_t lastUpdated = dateTimeToUnixMs(timeline.LastUpdatedTime());
