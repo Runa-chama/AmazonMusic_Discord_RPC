@@ -20,6 +20,9 @@ std::string formatDuration(int64_t milliseconds);
 
 void setVerbose(bool enabled);
 bool verbose();
+// Appends log lines to the given file (in addition to stdout). Rotates the
+// previous file to <path>.old when it grows beyond a couple of megabytes.
+void setLogFile(const std::wstring& path);
 void logInfo(const std::string& message);
 void logDebug(const std::string& message);
 void logError(const std::string& message);

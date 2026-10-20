@@ -29,7 +29,7 @@ if not exist "build" mkdir "build"
 
 echo Building...
 pushd "build"
-cl /nologo /std:c++20 /EHsc /O2 /utf-8 /W4 /permissive- /MT /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_WIN32_WINNT=0x0A00 /DWINVER=0x0A00 /I"..\src" ..\src\*.cpp /Fe:AmazonMusicRPC.exe /link /SUBSYSTEM:CONSOLE windowsapp.lib runtimeobject.lib ole32.lib oleaut32.lib shell32.lib advapi32.lib winhttp.lib user32.lib
+cl /nologo /std:c++20 /EHsc /O2 /utf-8 /W4 /permissive- /MT /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_WIN32_WINNT=0x0A00 /DWINVER=0x0A00 /I"..\src" ..\src\*.cpp /Fe:AmazonMusicRPC.exe /link /SUBSYSTEM:WINDOWS windowsapp.lib runtimeobject.lib ole32.lib oleaut32.lib shell32.lib advapi32.lib winhttp.lib user32.lib comctl32.lib gdi32.lib
 if errorlevel 1 (
     popd
     echo.
@@ -40,7 +40,13 @@ popd
 
 if not exist "dist" mkdir "dist"
 copy /y "build\AmazonMusicRPC.exe" "dist\AmazonMusicRPC.exe" >nul
+if errorlevel 1 (
+    echo.
+    echo [ERROR] Could not copy the executable to dist.
+    echo         Close any running AmazonMusicRPC.exe and try again.
+    exit /b 1
+)
 
 echo.
 echo Build succeeded: dist\AmazonMusicRPC.exe
-echo The first launch asks for your Discord Application ID.
+echo The first launch opens the settings window for your Discord Application ID.

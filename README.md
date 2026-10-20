@@ -3,9 +3,11 @@
 Amazon Music デスクトップアプリで再生している曲を、Discord のプロフィールに **Listening** として表示する Windows 用ツールです。
 
 - 曲名・アーティスト・アルバム名を表示
+- 名前の下のステータス行に **曲名** を表示（設定でアーティスト / アプリ名に変更可能）
 - アルバムジャケットを表示
 - 再生位置バー（推定）と再生時間を表示
 - 一時停止・再開に追従
+- タスクトレイ常駐の GUI アプリ。トレイアイコンをクリックして設定
 - Discord が起動していない場合は自動で再接続
 
 > このツールは Amazon および Discord の非公式ツールです。各社とは一切関係ありません。
@@ -31,21 +33,21 @@ Amazon Music デスクトップアプリで再生している曲を、Discord �
    （`Program Files` などは設定ファイルを作れないため避けてください）
 2. Discord デスクトップアプリを起動し、以下を確認します。
    **ユーザー設定 → アクティビティ設定 → 「現在のアクティビティをステータスとして表示」をオン**
-3. `AmazonMusicRPC.exe` を実行します。
-4. 初回起動時に Discord Application ID の入力を求められます。
+3. `AmazonMusicRPC.exe` を実行します。初回は設定ウィンドウが開きます。
+4. **Discord Application ID** を入力して「保存して適用」をクリックします。
+5. ウィンドウを閉じるとタスクトレイに常駐します。トレイアイコンをクリックすると設定を開けます。
+6. Amazon Music で曲を再生すると、Discord プロフィールに表示されます。
 
 ### Discord Application ID の取得
 
 1. <https://discord.com/developers/applications> を開く
 2. **New Application** をクリック
 3. 名前を入力（例: `Amazon Music`）
-   この名前が Discord プロフィールに表示されます。
+   この名前は Discord のアクティビティ名として使われます。
 4. 作成したアプリの **Application ID** をコピー
-5. コンソールに貼り付けて Enter
+5. 設定画面の「Discord Application ID」に貼り付けて「保存して適用」
 
 設定は exe と同じフォルダの `config.ini` に保存されます。次回以降は入力不要です。
-
-6. Amazon Music で曲を再生すると、Discord プロフィールに表示されます。
 
 > Application ID は「OAuth2」の Client Secret や Public Key ではありません。
 > **General Information** にある数字だけの Application ID を使います。
@@ -55,20 +57,58 @@ Amazon Music デスクトップアプリで再生している曲を、Discord �
 ## 表示例
 
 ```
-Listening to Amazon Music
-くいしんぼハッカー (feat. くいしんぼあかちゃん)
+Listening to くいしんぼハッカー (feat. くいしんぼあかちゃん)
 Neko Hacker
 未来茶屋 vol.0 - EP
 0:42 / 3:19
 ```
 
-実際の見た目は Discord のクライアントやプロフィールによって多少異なります。
+Discord のメンバーリストやプロフィールでは、名前の下のステータス行に曲名が表示されます。
+これは Discord の `status_display_type` に `details`（曲名）を指定しているためです。
+設定画面の「ステータス表示」で以下を選べます。
+
+| 設定 | 表示される内容 |
+| --- | --- |
+| 曲名（おすすめ） | 名前の下に曲名 |
+| アーティスト | 名前の下にアーティスト名 |
+| Discord アプリ名 | 従来どおりアプリ名（例: Amazon Music） |
+
+> Discord クライアントが古い場合、`status_display_type` に対応していないことがあります。
+> その場合は Discord を最新版に更新してください。アクティビティカード内の曲名・アーティスト表示は従来どおりです。
+
+---
+
+## GUI とタスクトレイ
+
+- **左クリック**: 設定ウィンドウを開く
+- **右クリック**: メニュー（設定を開く / RPC を一時停止・再開 / 終了）
+- **設定ウィンドウの ×**: アプリを終了せず、タスクトレイに隠す
+- **「終了」ボタンまたはトレイメニューの「終了」**: アプリを終了
+
+### 設定項目
+
+| 項目 | 説明 |
+| --- | --- |
+| Discord Application ID | Developer Portal で作成したアプリの ID。「取得方法」ボタンでポータルを開けます |
+| 対象アプリ | メディアセッションの判定。既定は `amazon`。セミコロン区切り、空欄で全アプリ |
+| ジャケット画像 | `iTunes` / `Amazon Music の画像 (catbox)` / `画像なし` |
+| iTunes ストア | iTunes Search API の国コード（`JP`, `US` など） |
+| ステータス表示 | 名前の下に表示する項目（曲名 / アーティスト / アプリ名） |
+| ポーリング間隔 | メディア情報の取得間隔（250〜5000 ms） |
+| 一時停止中も表示する | 一時停止中もプロフィールに残す |
+| Discord Rich Presence を有効にする | オフにするとアクティビティを消して停止 |
+| Windows 起動時に自動起動する | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` に登録 |
+| ログを開く | 同じフォルダの `AmazonMusicRPC.log` を開く |
+| 設定フォルダを開く | exe と同じフォルダを開く |
+
+> Windows 11 では、新しいトレイアイコンが「∧」のオーバーフロー内に隠れることがあります。
+> タスクバーの「∧」を開き、アイコンをドラッグして常時表示にしてください。
 
 ---
 
 ## ジャケット画像について
 
-`config.ini` の `art_source` で選べます。
+`art_source`（設定画面の「ジャケット画像」）で選べます。
 
 | 値 | 動作 | 特徴 |
 | --- | --- | --- |
@@ -111,15 +151,18 @@ Amazon Music デスクトップアプリは、Windows のメディアセッシ�
 
 ## config.ini
 
-初回起動時に自動生成されます。`config.example.ini` も参考にしてください。
+設定画面から保存できます。exe と同じフォルダに `config.ini` が作られます。
+`config.example.ini` も参考にしてください。
 
 ```ini
 client_id=123456789012345678
 app_filter=amazon
 art_source=itunes
 art_country=JP
+status_display=details
 poll_ms=750
 show_paused=true
+rpc_enabled=true
 ```
 
 | キー | 既定値 | 説明 |
@@ -128,8 +171,10 @@ show_paused=true
 | `app_filter` | `amazon` | 対象アプリの判定。セミコロン区切り、大文字小文字を無視した部分一致。空欄で全アプリ |
 | `art_source` | `itunes` | `itunes` / `catbox` / `none` |
 | `art_country` | `JP` | iTunes のストア（`JP`, `US` など） |
+| `status_display` | `details` | `details`（曲名）/ `state`（アーティスト）/ `name`（アプリ名） |
 | `poll_ms` | `750` | メディア情報の取得間隔（250〜5000 ms） |
 | `show_paused` | `true` | 一時停止中もプロフィールに表示する |
+| `rpc_enabled` | `true` | Rich Presence を有効にする。トレイメニューからも切り替え可能 |
 
 ### app_filter の例
 
@@ -151,6 +196,8 @@ app_filter=
 
 ## コマンドラインオプション
 
+通常は引数なしで起動してください。GUI アプリのため、引数を付けた診断モードではコンソールに出力します（コンソールがない場合は診断用ウィンドウが開きます）。
+
 ```text
 AmazonMusicRPC.exe [オプション]
 
@@ -159,7 +206,7 @@ AmazonMusicRPC.exe [オプション]
   --no-art                   ジャケット画像を表示しない
   --any                      対象アプリを問わず、再生中のメディアを表示
   --lookup <title> [artist]  iTunes メタデータ検索をテスト
-  --probe                    メディアセッションの検出結果だけを表示
+  --probe                    メディアセッションの検出結果を表示
   --verbose, -v              デバッグログを表示
   --help, -h                 ヘルプを表示
 ```
@@ -167,7 +214,7 @@ AmazonMusicRPC.exe [オプション]
 ### 使用例
 
 ```bat
-REM Amazon Music が検出できるか確認
+REM Amazon Music が検出できるか確認（診断コンソールが開きます）
 AmazonMusicRPC.exe --probe
 
 REM iTunes のメタデータ検索を確認
@@ -183,16 +230,18 @@ AmazonMusicRPC.exe --client-id 123456789012345678 --verbose
 `--probe` は Discord に接続しないため、Application ID がなくても実行できます。
 「何も表示されない」ときはまず `--probe` で対象セッションが取得できているか確認してください。
 
+ログは exe と同じフォルダの `AmazonMusicRPC.log` に保存されます。設定画面の「ログを開く」から確認できます。
+
 ---
 
 ## 自動起動
 
-1. `Win + R` を押し、`shell:startup` と入力して Enter
-2. `AmazonMusicRPC.exe` のショートカットをそのフォルダに置く
-3. ショートカットのプロパティ → **実行時の大きさ** を **最小化** に設定
+設定画面の **「Windows 起動時に自動起動する」** をオンにして「保存して適用」をクリックします。
+`HKCU\Software\Microsoft\Windows\CurrentVersion\Run\AmazonMusicRPC` に exe のパスが登録されます。
 
-コンソールウィンドウを閉じるとツールは終了します。最小化したままにしてください。
-タスクスケジューラの「ログオン時」に登録してもかまいません。
+- 自動起動を解除するには、チェックを外して保存します。
+- exe を移動した場合は、もう一度チェックを付け直してください。
+- スタートアップフォルダにショートカットを置く方法でも構いません。その場合も設定画面を開く必要はありません。
 
 ---
 
@@ -203,20 +252,34 @@ AmazonMusicRPC.exe --client-id 123456789012345678 --verbose
 - Discord **デスクトップアプリ**が起動していますか？（ブラウザ版 Discord は IPC に対応していません）
 - Discord の「現在のアクティビティをステータスとして表示」がオンですか？
 - Amazon Music で実際に曲を再生していますか？（アプリを開いただけでは検出されません）
+- 設定画面の「Discord」が **接続済み** になっていますか？
 - `AmazonMusicRPC.exe --probe` を実行し、Amazon Music のセッションと曲名が出るか確認してください。
 - セッションが出ない場合は Amazon Music を再起動してください。
+- ログ（`AmazonMusicRPC.log`）にエラーが出ていないか確認してください。
+
+### 名前の下に曲名が出ず「Amazon Music」と表示される
+
+- 設定画面の「ステータス表示」が **曲名（おすすめ）** になっていますか？
+- Discord クライアントが古い可能性があります。最新版に更新してください。
+- 一度 RPC を停止して再開するか、Discord を再起動してください。
 
 ### `Invalid Client ID` と表示される
 
 - Application ID が間違っています。Developer Portal の **Application ID**（数字のみ）をコピーしてください。
 - Client Secret や Public Key を貼り付けていませんか？
-- `config.ini` の `client_id=` を確認してください。
+- 設定画面の Application ID を確認してください。ログにもエラーが出ます。
 
 ### `Discord が見つかりません` と表示される
 
 - Discord デスクトップアプリが起動しているか確認してください。
 - Discord を再起動すると自動で再接続します。
 - ツールを管理者として実行している場合、Discord と権限が異なると接続できないことがあります。通常権限で実行してください。
+
+### トレイアイコンが見つからない
+
+- Windows 11 では「∧」（隠れているインジケーター）の中にある場合があります。
+- アイコンをタスクバーへドラッグして常時表示にしてください。
+- エクスプローラーを再起動した場合は、自動でアイコンを再登録します。
 
 ### ジャケット画像が表示されない
 
@@ -229,10 +292,10 @@ AmazonMusicRPC.exe --client-id 123456789012345678 --verbose
 
 仕様上の制限です。シークや途中からの起動ではずれます。次の曲に切り替わるとリセットされます。
 
-### コンソールの日本語が文字化けする
+### 診断コンソールの日本語が文字化けする
 
-Windows Terminal での実行を推奨します。従来のコンソールではフォントの設定によって文字化けすることがあります。
-`chcp 65001` を実行してから起動する方法も試してください。
+診断モードは UTF-8 で出力します。Windows Terminal での実行を推奨します。
+従来のコンソールではフォントの設定によって文字化けすることがあります。`chcp 65001` を実行してから起動する方法も試してください。
 
 ### Windows Defender / SmartScreen の警告が出る
 
@@ -259,6 +322,7 @@ build.bat
 
 成功すると `dist\AmazonMusicRPC.exe` が生成されます。
 `build.bat` は `vswhere` で最新の Visual Studio を探し、`vcvars64.bat` を読み込んで `cl.exe` でビルドします。
+GUI アプリのため `/SUBSYSTEM:WINDOWS` でリンクします。
 
 ### CMake
 
@@ -280,14 +344,16 @@ Visual Studio 18 など、使用中の CMake が対応していないジェネ�
 
 | 部分 | 内容 |
 | --- | --- |
+| GUI | Win32 API + タスクトレイ（`Shell_NotifyIcon`）。設定は `config.ini` に保存 |
 | メディア情報 | `Windows.Media.Control.GlobalSystemMediaTransportControlsSessionManager`（WinRT / GSMTC） |
 | Discord 連携 | `\\.\pipe\discord-ipc-0` 〜 `discord-ipc-9` への名前付きパイプ接続。opcode 0 でハンドシェイク、opcode 1 の `SET_ACTIVITY` で送信 |
 | アクティビティ種別 | `type: 2`（Listening） |
+| ステータス行 | `status_display_type`: `2`（details = 曲名）/ `1`（state = アーティスト）/ `0`（name = アプリ名） |
 | メタデータ補完 | iTunes Search API（アルバム、アーティスト、曲の長さ、ジャケット） |
 | 再生位置 | Amazon Music のログ `playbackTerminatedEvent` + 経過時間 |
 | 完全一致ジャケット | Amazon Music の通知キャッシュ画像（`art_source=catbox` 時のみ） |
 
-Discord の Application ID は、プロフィールに表示されるアプリ名を決めるために使います。
+Discord の Application ID は、アクティビティ名とプロフィールのアプリ名を決めるために使います。
 アプリを `Amazon Music` という名前で作成すると、自然な表示になります。
 
 ---
@@ -299,7 +365,7 @@ Discord の Application ID は、プロフィールに表示されるアプリ�
 - iTunes API には曲名・アーティスト名が送信されます（Apple の公開 API）。
 - `art_source=catbox` の場合、ジャケット画像が catbox.moe に公開アップロードされます。
 - Discord には通常の Rich Presence と同様にアクティビティ情報が送信されます。
-- `config.ini` はローカルに保存されます。Application ID 自体は秘密情報ではありませんが、配布する場合は内容を確認してください。
+- `config.ini` と `AmazonMusicRPC.log` はローカルに保存されます。Application ID 自体は秘密情報ではありませんが、配布する場合は内容を確認してください。
 
 ---
 
@@ -310,6 +376,7 @@ Discord の Application ID は、プロフィールに表示されるアプリ�
 - iTunes に存在しない曲は、ジャケットやアルバム名が表示されないことがあります。
 - SMTC がアーティスト名を返さない曲では、iTunes の検索結果に依存します。
 - Discord のアプリ名は、ユーザーが Developer Portal で作成したアプリ名になります。
+- Discord クライアントが `status_display_type` に対応していない場合、名前の下はアプリ名表示になります。
 - Linux / macOS には対応していません。
 
 ---

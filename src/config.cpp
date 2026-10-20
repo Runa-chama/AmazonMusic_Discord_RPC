@@ -32,11 +32,20 @@ const char* kDefaultConfig = "# Amazon Music Discord RPC\r\n"
                              "# iTunes 検索のストア (JP, US など)\r\n"
                              "art_country=JP\r\n"
                              "\r\n"
+                             "# 名前の下のステータスに表示する項目\r\n"
+                             "#   details : 曲名 (おすすめ)\r\n"
+                             "#   state   : アーティスト\r\n"
+                             "#   name    : Discord アプリ名\r\n"
+                             "status_display=details\r\n"
+                             "\r\n"
                              "# メディア情報のポーリング間隔 (ミリ秒)\r\n"
                              "poll_ms=750\r\n"
                              "\r\n"
                              "# 一時停止中もプロフィールに表示する\r\n"
-                             "show_paused=true\r\n";
+                             "show_paused=true\r\n"
+                             "\r\n"
+                             "# Discord Rich Presence を有効にする\r\n"
+                             "rpc_enabled=true\r\n";
 
 std::string readFile(const std::wstring& path) {
     std::ifstream file(path, std::ios::binary);
@@ -65,6 +74,12 @@ bool parseBool(const std::string& value, bool fallback) {
     if (v == "1" || v == "true" || v == "yes" || v == "on") return true;
     if (v == "0" || v == "false" || v == "no" || v == "off") return false;
     return fallback;
+}
+
+std::string normalizeStatusDisplay(const std::string& value) {
+    const std::string v = lower(trim(value));
+    if (v == "state" || v == "name" || v == "details") return v;
+    return "details";
 }
 
 } // namespace
@@ -106,6 +121,8 @@ Config loadConfig(const std::wstring& path, bool& created) {
             if (v == "itunes" || v == "catbox" || v == "none") config.artSource = v;
         } else if (key == "art_country") {
             if (!value.empty()) config.artCountry = value;
+        } else if (key == "status_display") {
+            config.statusDisplay = normalizeStatusDisplay(value);
         } else if (key == "poll_ms") {
             try {
                 config.pollMs = std::clamp(std::stoi(value), 250, 5000);
@@ -113,6 +130,8 @@ Config loadConfig(const std::wstring& path, bool& created) {
             }
         } else if (key == "show_paused") {
             config.showPaused = parseBool(value, config.showPaused);
+        } else if (key == "rpc_enabled") {
+            config.rpcEnabled = parseBool(value, config.rpcEnabled);
         }
     }
 
@@ -131,8 +150,11 @@ bool saveConfig(const std::wstring& path, const Config& config) {
     out << "# ジャケット画像: itunes | catbox | none\r\n";
     out << "art_source=" << config.artSource << "\r\n";
     out << "art_country=" << config.artCountry << "\r\n";
+    out << "# 名前の下のステータス: details (曲名) | state (アーティスト) | name (アプリ名)\r\n";
+    out << "status_display=" << normalizeStatusDisplay(config.statusDisplay) << "\r\n";
     out << "poll_ms=" << config.pollMs << "\r\n";
     out << "show_paused=" << (config.showPaused ? "true" : "false") << "\r\n";
+    out << "rpc_enabled=" << (config.rpcEnabled ? "true" : "false") << "\r\n";
     return writeFile(path, out.str());
 }
 

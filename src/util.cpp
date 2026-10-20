@@ -6,6 +6,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <mutex>
 #include <vector>
@@ -13,6 +15,7 @@
 namespace {
 std::atomic<bool> g_verbose{false};
 std::mutex g_logMutex;
+std::ofstream g_logFile;
 
 std::string timestamp() {
     SYSTEMTIME st{};
@@ -24,7 +27,12 @@ std::string timestamp() {
 
 void writeLine(const std::string& line) {
     std::lock_guard<std::mutex> lock(g_logMutex);
-    std::cout << "[" << timestamp() << "] " << line << std::endl;
+    const std::string text = "[" + timestamp() + "] " + line;
+    std::cout << text << std::endl;
+    if (g_logFile) {
+        g_logFile << text << '\n';
+        g_logFile.flush();
+    }
 }
 } // namespace
 
@@ -125,6 +133,21 @@ void setVerbose(bool enabled) {
 
 bool verbose() {
     return g_verbose.load();
+}
+
+void setLogFile(const std::wstring& path) {
+    std::lock_guard<std::mutex> lock(g_logMutex);
+    if (g_logFile) g_logFile.close();
+
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(path, ec);
+    if (!ec && size > 2ull * 1024 * 1024) {
+        std::filesystem::remove(path + L".old", ec);
+        ec.clear();
+        std::filesystem::rename(path, path + L".old", ec);
+    }
+
+    g_logFile.open(path, std::ios::out | std::ios::app | std::ios::binary);
 }
 
 void logInfo(const std::string& message) {

@@ -4,8 +4,10 @@ project(AmazonMusicRPC VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
-add_executable(AmazonMusicRPC
-    src/main.cpp
+add_executable(AmazonMusicRPC WIN32
+    src/app.cpp
+    src/worker.cpp
+    src/diagnostics.cpp
     src/config.cpp
     src/util.cpp
     src/media.cpp
@@ -42,6 +44,8 @@ target_link_libraries(AmazonMusicRPC PRIVATE
     advapi32
     winhttp
     user32
+    comctl32
+    gdi32
 )
 
 set_target_properties(AmazonMusicRPC PROPERTIES

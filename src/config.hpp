@@ -7,8 +7,12 @@ struct Config {
     std::string appFilter = "amazon";
     std::string artSource = "itunes"; // itunes | catbox | none
     std::string artCountry = "JP";
+    // Which activity field Discord shows in the member list / status line:
+    // details = song title, state = artist, name = Discord application name.
+    std::string statusDisplay = "details"; // details | state | name
     int pollMs = 750;
     bool showPaused = true;
+    bool rpcEnabled = true;
 };
 
 // Loads config.ini from the executable directory (or the given path).
