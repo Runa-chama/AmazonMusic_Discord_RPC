@@ -25,6 +25,7 @@ constexpr UINT kTrayMessage = WM_APP + 1;
 constexpr UINT kShowSettingsMessage = WM_APP + 2;
 constexpr UINT_PTR kTrayTimer = 1;
 constexpr UINT kTrayIconId = 1;
+constexpr int kAppIconId = 101;
 
 constexpr int IDC_CLIENT_ID = 1001;
 constexpr int IDC_APP_FILTER = 1002;
@@ -218,6 +219,16 @@ void showBalloon(const std::wstring& title, const std::wstring& text) {
     g_nid.uFlags = 0;
 }
 
+HICON loadAppIcon(bool small) {
+    const int cx = GetSystemMetrics(small ? SM_CXSMICON : SM_CXICON);
+    const int cy = GetSystemMetrics(small ? SM_CYSMICON : SM_CYICON);
+    HICON icon = static_cast<HICON>(LoadImageW(g_instance, MAKEINTRESOURCEW(kAppIconId),
+                                               IMAGE_ICON, cx, cy,
+                                               LR_DEFAULTCOLOR | LR_SHARED));
+    if (!icon) icon = LoadIconW(nullptr, IDI_APPLICATION);
+    return icon;
+}
+
 void addTrayIcon() {
     ZeroMemory(&g_nid, sizeof(g_nid));
     g_nid.cbSize = sizeof(g_nid);
@@ -225,7 +236,7 @@ void addTrayIcon() {
     g_nid.uID = kTrayIconId;
     g_nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     g_nid.uCallbackMessage = kTrayMessage;
-    g_nid.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    g_nid.hIcon = loadAppIcon(true);
     wcsncpy_s(g_nid.szTip, L"Amazon Music Discord RPC", _TRUNCATE);
     if (Shell_NotifyIconW(NIM_ADD, &g_nid)) {
         g_trayAdded = true;
@@ -675,8 +686,8 @@ void createSettingsWindow() {
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BTNFACE + 1);
         wc.lpszClassName = kSettingsClassName;
-        wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-        wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
+        wc.hIcon = loadAppIcon(false);
+        wc.hIconSm = loadAppIcon(true);
         if (!RegisterClassExW(&wc)) {
             showMessage(L"設定ウィンドウを登録できませんでした。", MB_OK | MB_ICONERROR);
             return;
@@ -702,7 +713,9 @@ void createSettingsWindow() {
         return;
     }
     SendMessageW(g_settingsWindow, WM_SETICON, ICON_BIG,
-                 reinterpret_cast<LPARAM>(LoadIconW(nullptr, IDI_APPLICATION)));
+                 reinterpret_cast<LPARAM>(loadAppIcon(false)));
+    SendMessageW(g_settingsWindow, WM_SETICON, ICON_SMALL,
+                 reinterpret_cast<LPARAM>(loadAppIcon(true)));
     createControls();
 }
 
@@ -779,8 +792,8 @@ void createTrayWindow() {
         wc.hInstance = g_instance;
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         wc.lpszClassName = kTrayClassName;
-        wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-        wc.hIconSm = LoadIconW(nullptr, IDI_APPLICATION);
+        wc.hIcon = loadAppIcon(false);
+        wc.hIconSm = loadAppIcon(true);
         if (!RegisterClassExW(&wc)) {
             showMessage(L"通知領域のウィンドウを登録できませんでした。", MB_OK | MB_ICONERROR);
             return;

@@ -29,7 +29,14 @@ if not exist "build" mkdir "build"
 
 echo Building...
 pushd "build"
-cl /nologo /std:c++20 /EHsc /O2 /utf-8 /W4 /permissive- /MT /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_WIN32_WINNT=0x0A00 /DWINVER=0x0A00 /I"..\src" ..\src\*.cpp /Fe:AmazonMusicRPC.exe /link /SUBSYSTEM:WINDOWS windowsapp.lib runtimeobject.lib ole32.lib oleaut32.lib shell32.lib advapi32.lib winhttp.lib user32.lib comctl32.lib gdi32.lib
+rc /nologo /I"..\resources" /fo app.res ..\resources\app.rc
+if errorlevel 1 (
+    popd
+    echo.
+    echo [ERROR] Failed to compile resources\app.rc.
+    exit /b 1
+)
+cl /nologo /std:c++20 /EHsc /O2 /utf-8 /W4 /permissive- /MT /DUNICODE /D_UNICODE /DNOMINMAX /DWIN32_LEAN_AND_MEAN /D_WIN32_WINNT=0x0A00 /DWINVER=0x0A00 /I"..\src" ..\src\*.cpp app.res /Fe:AmazonMusicRPC.exe /link /SUBSYSTEM:WINDOWS windowsapp.lib runtimeobject.lib ole32.lib oleaut32.lib shell32.lib advapi32.lib winhttp.lib user32.lib comctl32.lib gdi32.lib
 if errorlevel 1 (
     popd
     echo.

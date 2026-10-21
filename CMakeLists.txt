@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 cmake_policy(SET CMP0091 NEW)
-project(AmazonMusicRPC VERSION 1.0.0 LANGUAGES CXX)
+project(AmazonMusicRPC VERSION 1.0.0 LANGUAGES CXX RC)
 
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
@@ -16,6 +16,7 @@ add_executable(AmazonMusicRPC WIN32
     src/http.cpp
     src/artwork.cpp
     src/discord_ipc.cpp
+    resources/app.rc
 )
 
 target_compile_features(AmazonMusicRPC PRIVATE cxx_std_20)
@@ -34,7 +35,7 @@ else()
     message(FATAL_ERROR "This project requires MSVC (C++/WinRT).")
 endif()
 
-target_include_directories(AmazonMusicRPC PRIVATE src)
+target_include_directories(AmazonMusicRPC PRIVATE src resources)
 
 target_link_libraries(AmazonMusicRPC PRIVATE
     windowsapp
